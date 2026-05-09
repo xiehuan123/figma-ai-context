@@ -55,12 +55,12 @@ export class SvgExporter {
    * @returns {string|null} 角色名或 null
    */
   _shouldExport(node) {
-    // VECTOR 类型节点
-    if (VECTOR_TYPES.has(node.type)) {
-      return "vector";
+    // 跳过组件实例内部的子节点（ID 含分号表示是实例内部节点）
+    if (node.id && node.id.includes(";")) {
+      return null;
     }
 
-    // 名称匹配图标模式
+    // 名称匹配图标模式（优先级最高）
     if (ICON_PATTERN.test(node.name)) {
       return "icon";
     }
@@ -68,6 +68,11 @@ export class SvgExporter {
     // INSTANCE 类型且组件名匹配图标模式
     if (node.type === "INSTANCE" && ICON_PATTERN.test(node.name)) {
       return "icon";
+    }
+
+    // 顶层 VECTOR 类型节点（非嵌套在 frame 深处的装饰性向量）
+    if (VECTOR_TYPES.has(node.type)) {
+      return "vector";
     }
 
     // 包含 IMAGE fill
@@ -120,6 +125,11 @@ export class SvgExporter {
         }
 
         const svgContent = await response.text();
+        if (!svgContent || svgContent.trim().length === 0) {
+          console.error(`[svg-exporter] Empty SVG content for ${nodeId}, skipping`);
+          return;
+        }
+
         const nodeInfo = nodeMap.get(nodeId);
         const filename = this._buildFilename(nodeInfo);
 
@@ -151,7 +161,7 @@ export class SvgExporter {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 40);
-    const id = nodeInfo.id.replace(":", "-");
+    const id = nodeInfo.id.replace(/[:.;]/g, "-");
     return `${role}-${name}_${id}.svg`;
   }
 

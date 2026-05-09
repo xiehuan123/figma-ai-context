@@ -81,6 +81,9 @@ server.tool(
     const nodeData = data.nodes[normalizedId];
     if (!nodeData) return { content: [{ type: "text", text: `节点 ${normalizedId} 不存在` }] };
 
+    // 存储原始数据
+    tempManager.writeRaw(fileKey, normalizedId, nodeData);
+
     const simplified = simplifyNode(nodeData.document, 0, depth);
     const summary = generateSummary(simplified);
 
@@ -91,6 +94,18 @@ server.tool(
       try {
         const svgResults = await svgExporter.exportAndDownload(fileKey, exportableNodes);
         svgSection = svgExporter.formatExportResults(svgResults);
+        // 记录图标到汇总索引
+        const iconEntries = [];
+        for (const [nodeIdKey, svgInfo] of svgResults.entries()) {
+          iconEntries.push({
+            fileKey,
+            nodeId: nodeIdKey,
+            name: svgInfo.filename || nodeIdKey,
+            svgPath: svgInfo.path || null,
+            source: "get_node",
+          });
+        }
+        if (iconEntries.length > 0) tempManager.addIcons(iconEntries);
       } catch (e) {
         svgSection = `\n\n# SVG Export Error\n${e.message}`;
       }
@@ -125,6 +140,9 @@ server.tool(
         varSection = `\n\n# CSS 变量 (从节点绑定提取)\n:root {\n${varLines.join("\n")}\n}`;
       }
 
+      // 存储优化后数据
+      tempManager.writeOptimized(fileKey, normalizedId, { summary, condensed, variables: nodeVarMap });
+
       return {
         content: [{
           type: "text",
@@ -139,6 +157,9 @@ server.tool(
     if (Object.keys(nodeVarMap).length > 0) {
       variables = nodeVarMap;
     }
+
+    // 存储优化后数据
+    tempManager.writeOptimized(fileKey, normalizedId, { summary, tree: simplified, variables });
 
     // 日志记录
     logger.logOptimized("get_node", { fileKey, nodeId: normalizedId, format }, { summary, variables });
@@ -320,6 +341,19 @@ server.tool(
       }
 
       const output = svgExporter.formatExportResults(results);
+      // 记录图标到汇总索引
+      const iconEntries = [];
+      for (const [nodeIdKey, svgInfo] of results.entries()) {
+        iconEntries.push({
+          fileKey,
+          nodeId: nodeIdKey,
+          name: svgInfo.filename || nodeIdKey,
+          svgPath: svgInfo.path || null,
+          source: "export_svg",
+        });
+      }
+      if (iconEntries.length > 0) tempManager.addIcons(iconEntries);
+
       logger.logOptimized("export_svg", { fileKey, nodeIds: ids }, { exportedCount: results.size });
       return { content: [{ type: "text", text: output }] };
     } catch (e) {
@@ -424,6 +458,9 @@ server.tool(
     const nodeData = nodeResult.nodes[normalizedId];
     if (!nodeData) return { content: [{ type: "text", text: `节点 ${normalizedId} 不存在` }] };
 
+    // 存储原始数据
+    tempManager.writeRaw(fileKey, normalizedId, nodeData);
+
     const node = nodeData.document;
 
     // 构建 variable 映射
@@ -490,10 +527,33 @@ server.tool(
         const svgResults = await svgExporter.exportAndDownload(fileKey, exportableNodes);
         const svgSection = svgExporter.formatExportResults(svgResults);
         if (svgSection) output.push(svgSection);
+        // 记录图标到汇总索引
+        const iconEntries = [];
+        for (const [nodeIdKey, svgInfo] of svgResults.entries()) {
+          iconEntries.push({
+            fileKey,
+            nodeId: nodeIdKey,
+            name: svgInfo.filename || nodeIdKey,
+            svgPath: svgInfo.path || null,
+            source: "get_page_for_codegen",
+          });
+        }
+        if (iconEntries.length > 0) tempManager.addIcons(iconEntries);
       } catch (e) {
         output.push(`\n## SVG Export Error\n${e.message}`);
       }
     }
+
+    // 存储优化后数据
+    tempManager.writeOptimized(fileKey, normalizedId, {
+      nodeName: node.name,
+      nodeType: node.type,
+      structure,
+      colors: [...colors],
+      fonts: [...fonts],
+      components,
+      tokens: tokensSummary || null,
+    });
 
     // 日志记录
     logger.logOptimized("get_page_for_codegen", { fileKey, nodeId: normalizedId }, { nodeType: node.type, nodeName: node.name });

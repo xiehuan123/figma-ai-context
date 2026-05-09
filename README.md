@@ -126,14 +126,18 @@ Figma → Settings → Personal Access Tokens → 创建 token
 
 ```
 .figma-temp/
-  logs/    # API 日志
-  svg/     # 导出的 SVG 文件
+  raw/       # Figma API 原始响应数据
+  optimized/ # 优化后的 AI 友好数据
+  svg/       # 导出的 SVG 文件
+  icons/     # 图标索引 (index.json)
+  logs/      # API 调用日志
 ```
 
 **生命周期规则：**
 - MCP Server 启动时自动清空上一次的 `.figma-temp/` 目录
-- 重新创建空的 `logs/` 和 `svg/` 子目录
+- 重新创建完整的子目录结构（raw/、optimized/、svg/、icons/、logs/）
 - 会话期间的所有数据保留到下次启动
+- 每次会话完全隔离，不会跨会话保留任何数据
 
 ## 核心特性
 
