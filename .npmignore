@@ -1,0 +1,7 @@
+.github/
+.legna/
+.git/
+*.log
+.env
+.env.*
+node_modules/

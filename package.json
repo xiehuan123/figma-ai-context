@@ -1,5 +1,5 @@
 {
-  "name": "figma-mcp-server",
+  "name": "@xiehuan/figma-mcp-server",
   "version": "1.0.0",
   "description": "Figma MCP Server - 将 Figma API 数据处理成 AI 友好格式",
   "type": "module",
@@ -10,6 +10,23 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "figma",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "design"
+  ],
+  "author": "xiehuan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiehuan123/figma-mcp-server.git"
+  },
+  "homepage": "https://github.com/xiehuan123/figma-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/xiehuan123/figma-mcp-server/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1"
