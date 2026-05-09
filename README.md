@@ -27,7 +27,23 @@ Figma → Settings → Personal Access Tokens → 创建 token
 
 ### 2. 配置到 Claude Desktop / LegnaCode
 
-编辑 MCP 配置文件：
+#### 方式一：直接使用（无需安装包）
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "@xiehuan123/figma-mcp-server"],
+      "env": {
+        "FIGMA_TOKEN": "figd_你的token"
+      }
+    }
+  }
+}
+```
+
+#### 方式二：本地源码运行
 
 ```json
 {
