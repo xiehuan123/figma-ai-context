@@ -2,6 +2,10 @@
 .legna/
 .git/
 *.log
+*.html
 .env
 .env.*
+.mcp.json
 node_modules/
+debug-raw-vs-optimized.json
+figma-data-optimized.json
