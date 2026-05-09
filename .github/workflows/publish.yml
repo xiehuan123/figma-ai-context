@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@xiehuan'
+          scope: '@xiehuan123'
       - run: npm ci
       - run: npm publish --access public
         env:
