@@ -1,0 +1,8 @@
+.legna/
+.claude/
+.figma-temp/
+node_modules/
+*.html
+*.json
+!package.json
+!package-lock.json
