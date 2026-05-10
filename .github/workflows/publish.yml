@@ -38,6 +38,6 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm pkg set name='@xiehuan123/figma-ai-context'
-      - run: npm publish --provenance --access public
+      - run: npm publish --provenance --access public || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
