@@ -342,6 +342,70 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_component_variants",
+  {
+    description: "获取 COMPONENT_SET 下所有 variant 及其属性组合，对生成组件 props 接口非常有帮助",
+    inputSchema: {
+      fileKey: z.string().describe("Figma 文件 Key"),
+      nodeId: z.string().describe("COMPONENT_SET 的节点 ID"),
+    },
+  },
+  async ({ fileKey, nodeId }) => {
+    try {
+    const normalizedId = nodeId.replace(/-/g, ":");
+    const data = await figma.getFileNodes(fileKey, [normalizedId]) as any;
+    if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
+
+    const nodeData = data.nodes[normalizedId];
+    if (!nodeData) return { content: [{ type: "text" as const, text: `节点 ${normalizedId} 不存在` }] };
+
+    const node = nodeData.document;
+    if (node.type !== "COMPONENT_SET") {
+      return { content: [{ type: "text" as const, text: `节点 ${node.name} 类型为 ${node.type}，不是 COMPONENT_SET。请传入组件集的节点 ID` }] };
+    }
+
+    const properties: Record<string, Set<string>> = {};
+    const variants: Array<{ name: string; id: string; props: Record<string, string> }> = [];
+
+    for (const child of node.children || []) {
+      if (child.type !== "COMPONENT") continue;
+      const props: Record<string, string> = {};
+      const parts = child.name.split(",").map((s: string) => s.trim());
+      for (const part of parts) {
+        const [key, value] = part.split("=").map((s: string) => s.trim());
+        if (key && value) {
+          props[key] = value;
+          if (!properties[key]) properties[key] = new Set();
+          properties[key].add(value);
+        }
+      }
+      variants.push({ name: child.name, id: child.id, props });
+    }
+
+    const output: string[] = [
+      `# ${node.name}`,
+      ``,
+      `## 属性定义`,
+    ];
+
+    for (const [prop, values] of Object.entries(properties)) {
+      output.push(`- **${prop}**: ${[...values].join(" | ")}`);
+    }
+
+    output.push(``, `## Variants (${variants.length})`);
+    for (const v of variants) {
+      const propsStr = Object.entries(v.props).map(([k, val]) => `${k}=${val}`).join(", ");
+      output.push(`- ${propsStr} (id: ${v.id})`);
+    }
+
+    return {
+      content: [{ type: "text" as const, text: output.join("\n") }],
+    };
+    } catch (error) { return formatError(error); }
+  }
+);
+
+server.registerTool(
   "get_variables",
   {
     description: "获取文件的 Variables（设计变量/token），包含颜色、数值等",
