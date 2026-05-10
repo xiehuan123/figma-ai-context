@@ -10,7 +10,7 @@ import { SvgExporter } from "./svg-exporter.js";
 import { simplifyNode, buildComponentMap, generateSummary, toCondensedFormat, inferSemanticRole, buildVariableMap, buildVariableMapFromNodes, toCondensedWithBudget, gradientToCSS, parseEffects, effectsToCSS, fillsToCSS } from "./transformer.js";
 
 const server = new McpServer({
-  name: "figma-mcp-server",
+  name: "figma-context-mcp",
   version: "1.0.0",
 });
 
