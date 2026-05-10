@@ -3,12 +3,49 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { FigmaClient } from "./figma-client.js";
+import { FigmaClient, FigmaApiError } from "./figma-client.js";
 import { TempManager } from "./temp-manager.js";
 import { Logger } from "./logger.js";
 import { SvgExporter } from "./svg-exporter.js";
 import { simplifyNode, buildComponentMap, generateSummary, toCondensedFormat, inferSemanticRole, buildVariableMap, buildVariableMapFromNodes, toCondensedWithBudget, gradientToCSS, parseEffects, effectsToCSS, fillsToCSS, colorToString } from "./transformer.js";
 import { parseFigmaUrl, extractAllTexts, formatVariableValues, formatValue, extractDesignInfo, toCSSClass, nodeToCSS, nodeToCSSRecursive, nodeToTailwind, nodeToTailwindRecursive } from "./helpers.js";
+
+if (!process.env.FIGMA_TOKEN) {
+  process.stderr.write(
+    "Error: FIGMA_TOKEN 环境变量未设置。\n" +
+    "请在 MCP 配置中添加: \"env\": { \"FIGMA_TOKEN\": \"your-token\" }\n" +
+    "获取 token: https://www.figma.com/developers/api#access-tokens\n"
+  );
+  process.exit(1);
+}
+
+function formatError(error: unknown): { content: Array<{ type: "text"; text: string }> } {
+  if (error instanceof FigmaApiError) {
+    const status = error.status;
+    let message: string;
+    if (status === 401 || status === 403) {
+      message = "Figma token 无效或无权限访问此文件，请检查 FIGMA_TOKEN 配置";
+    } else if (status === 404) {
+      message = "文件或节点不存在，请检查 fileKey 和 nodeId 是否正确";
+    } else if (status === 429) {
+      message = "Figma API 请求过于频繁，已重试多次仍失败，请稍后再试";
+    } else if (status >= 500) {
+      message = `Figma API 服务端错误 (${status})，请稍后重试`;
+    } else {
+      message = `Figma API 错误 (${status}): ${error.message}`;
+    }
+    return { content: [{ type: "text" as const, text: message }] };
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes("fetch") || error.message.includes("ECONNREFUSED") || error.message.includes("ETIMEDOUT")) {
+      return { content: [{ type: "text" as const, text: "无法连接 Figma API，请检查网络连接" }] };
+    }
+    return { content: [{ type: "text" as const, text: `操作失败: ${error.message}` }] };
+  }
+
+  return { content: [{ type: "text" as const, text: "发生未知错误" }] };
+}
 
 const server = new McpServer({
   name: "figma-ai-context",
@@ -19,7 +56,7 @@ const tempManager = new TempManager();
 tempManager.init();
 
 const logger = new Logger(tempManager);
-const figma = new FigmaClient(process.env.FIGMA_TOKEN || "");
+const figma = new FigmaClient(process.env.FIGMA_TOKEN);
 const svgExporter = new SvgExporter(figma, tempManager);
 
 figma.onResponse = (path, params, data) => {
@@ -35,6 +72,7 @@ server.registerTool(
     },
   },
   async ({ fileKey }) => {
+    try {
     const data = await figma.getFile(fileKey, { depth: 2 }) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取文件失败，请检查 token 和 file key" }] };
 
@@ -58,6 +96,7 @@ server.registerTool(
         text: JSON.stringify({ fileName: data.name, lastModified: data.lastModified, pages }, null, 2),
       }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -73,6 +112,7 @@ server.registerTool(
     },
   },
   async ({ url, fileKey, nodeId, depth }) => {
+    try {
     let resolvedFileKey = fileKey;
     let resolvedNodeId = nodeId;
 
@@ -92,7 +132,7 @@ server.registerTool(
     let rootNode: any;
 
     if (resolvedNodeId) {
-      const normalizedId = resolvedNodeId.replace("-", ":");
+      const normalizedId = resolvedNodeId.replace(/-/g, ":");
       const data = await figma.getFileNodes(resolvedFileKey, [normalizedId]) as any;
       if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
       const nodeData = data.nodes[normalizedId];
@@ -120,6 +160,7 @@ server.registerTool(
         text: `# 文字内容 (共 ${texts.length} 条)\n\n${output}`,
       }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -136,7 +177,8 @@ server.registerTool(
     },
   },
   async ({ fileKey, nodeId, depth, format, maxTokens }) => {
-    const normalizedId = nodeId.replace("-", ":");
+    try {
+    const normalizedId = nodeId.replace(/-/g, ":");
     const data = await figma.getFileNodes(fileKey, [normalizedId]) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
 
@@ -221,6 +263,7 @@ server.registerTool(
         text: JSON.stringify({ summary, tree: simplified, variables }, null, 2) + svgSection,
       }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -235,6 +278,7 @@ server.registerTool(
     },
   },
   async ({ fileKey }) => {
+    try {
     const data = await figma.getFile(fileKey, { depth: 2 }) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取文件失败" }] };
 
@@ -242,6 +286,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(componentMap, null, 2) }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -254,6 +299,7 @@ server.registerTool(
     },
   },
   async ({ fileKey }) => {
+    try {
     const data = await figma.getVariables(fileKey) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取 variables 失败" }] };
 
@@ -275,6 +321,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -290,7 +337,8 @@ server.registerTool(
     },
   },
   async ({ fileKey, nodeId, mode, recursive }) => {
-    const normalizedId = nodeId.replace("-", ":");
+    try {
+    const normalizedId = nodeId.replace(/-/g, ":");
     const data = await figma.getFileNodes(fileKey, [normalizedId]) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
 
@@ -311,6 +359,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: output }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -326,13 +375,15 @@ server.registerTool(
     },
   },
   async ({ fileKey, nodeIds, format, scale }) => {
-    const ids = nodeIds.map((id) => id.replace("-", ":"));
+    try {
+    const ids = nodeIds.map((id) => id.replace(/-/g, ":"));
     const data = await figma.getImages(fileKey, ids, format, scale) as any;
     if (!data) return { content: [{ type: "text" as const, text: "获取图片失败" }] };
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(data.images || {}, null, 2) }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -346,7 +397,8 @@ server.registerTool(
     },
   },
   async ({ fileKey, nodeIds }) => {
-    const ids = nodeIds.map((id) => id.replace("-", ":"));
+    try {
+    const ids = nodeIds.map((id) => id.replace(/-/g, ":"));
     const nodes = ids.map((id) => ({ id, name: id, role: "export" }));
 
     try {
@@ -373,6 +425,7 @@ server.registerTool(
     } catch (e: any) {
       return { content: [{ type: "text" as const, text: `SVG 导出失败: ${e.message}` }] };
     }
+    } catch (error) { return formatError(error); }
   }
 );
 
@@ -405,7 +458,8 @@ server.registerTool(
     },
   },
   async ({ fileKey, nodeId, depth }) => {
-    const normalizedId = nodeId.replace("-", ":");
+    try {
+    const normalizedId = nodeId.replace(/-/g, ":");
 
     const [nodeResult, varsResult] = await Promise.all([
       figma.getFileNodes(fileKey, [normalizedId]),
@@ -507,6 +561,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: output.join("\n") }],
     };
+    } catch (error) { return formatError(error); }
   }
 );
 
