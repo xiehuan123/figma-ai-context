@@ -1,5 +1,6 @@
 .legna/
-.claude/
+.claude/*
+!.claude/settings.json
 .figma-temp/
 node_modules/
 dist/
