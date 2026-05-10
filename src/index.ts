@@ -613,7 +613,29 @@ server.registerTool(
   }
 );
 
-// PLACEHOLDER_INDEX_3
+server.registerTool(
+  "get_versions",
+  {
+    description: "获取文件的版本历史列表,包含版本 ID、创建时间、描述等信息",
+    inputSchema: {
+      fileKey: z.string().describe("Figma 文件 Key"),
+    },
+  },
+  async ({ fileKey }) => {
+    try {
+      const data = await figma.getFileVersions(fileKey) as any;
+      if (!data?.versions?.length) {
+        return { content: [{ type: "text" as const, text: "无法获取版本历史或文件无版本记录" }] };
+      }
+      const lines = data.versions.map((v: any, i: number) =>
+        `${i + 1}. [${v.id}] ${v.created_at}${v.label ? ` — "${v.label}"` : ""}${v.description ? ` (${v.description})` : ""} by ${v.user?.handle || "unknown"}`
+      );
+      return {
+        content: [{ type: "text" as const, text: `# 版本历史 (共 ${data.versions.length} 个)\n\n${lines.join("\n")}` }],
+      };
+    } catch (error) { return formatError(error); }
+  }
+);
 
 server.registerTool(
   "diff_nodes",
