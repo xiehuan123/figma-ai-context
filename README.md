@@ -1,4 +1,4 @@
-# Figma Context MCP
+# Figma AI Context
 
 将 Figma API 数据处理成 AI 友好格式的 MCP 服务器，专为 AI 代码生成场景优化。
 
@@ -15,7 +15,7 @@
 ## 安装
 
 ```bash
-cd figma-context-mcp
+cd figma-ai-context
 npm install
 ```
 
@@ -34,7 +34,7 @@ Figma → Settings → Personal Access Tokens → 创建 token
   "mcpServers": {
     "figma": {
       "command": "npx",
-      "args": ["-y", "figma-context-mcp"],
+      "args": ["-y", "figma-ai-context"],
       "env": {
         "FIGMA_TOKEN": "figd_你的token"
       }
@@ -50,7 +50,7 @@ Figma → Settings → Personal Access Tokens → 创建 token
   "mcpServers": {
     "figma": {
       "command": "node",
-      "args": ["/path/to/figma-context-mcp/src/index.js"],
+      "args": ["/path/to/figma-ai-context/src/index.js"],
       "env": {
         "FIGMA_TOKEN": "figd_你的token"
       }
