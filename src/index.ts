@@ -377,6 +377,74 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_styles",
+  {
+    description: "获取文件中所有样式定义（颜色样式、文字样式、效果样式），对理解设计系统和生成一致的代码非常有帮助",
+    inputSchema: {
+      fileKey: z.string().describe("Figma 文件 Key"),
+    },
+  },
+  async ({ fileKey }) => {
+    try {
+    const data = await figma.getFileStyles(fileKey) as any;
+    if (!data || !data.meta?.styles) {
+      return { content: [{ type: "text" as const, text: "未找到样式定义，该文件可能没有发布的样式" }] };
+    }
+
+    const styles = data.meta.styles as any[];
+    if (styles.length === 0) {
+      return { content: [{ type: "text" as const, text: "该文件没有已发布的样式" }] };
+    }
+
+    const grouped: Record<string, any[]> = { FILL: [], TEXT: [], EFFECT: [], GRID: [] };
+    for (const style of styles) {
+      const group = grouped[style.style_type] || [];
+      group.push(style);
+      grouped[style.style_type] = group;
+    }
+
+    const output: string[] = [`# 文件样式 (共 ${styles.length} 个)\n`];
+
+    if (grouped.FILL.length > 0) {
+      output.push(`## 颜色样式 (${grouped.FILL.length})`);
+      for (const s of grouped.FILL) {
+        output.push(`- ${s.name}${s.description ? ` — ${s.description}` : ""}`);
+      }
+      output.push("");
+    }
+
+    if (grouped.TEXT.length > 0) {
+      output.push(`## 文字样式 (${grouped.TEXT.length})`);
+      for (const s of grouped.TEXT) {
+        output.push(`- ${s.name}${s.description ? ` — ${s.description}` : ""}`);
+      }
+      output.push("");
+    }
+
+    if (grouped.EFFECT.length > 0) {
+      output.push(`## 效果样式 (${grouped.EFFECT.length})`);
+      for (const s of grouped.EFFECT) {
+        output.push(`- ${s.name}${s.description ? ` — ${s.description}` : ""}`);
+      }
+      output.push("");
+    }
+
+    if (grouped.GRID.length > 0) {
+      output.push(`## 网格样式 (${grouped.GRID.length})`);
+      for (const s of grouped.GRID) {
+        output.push(`- ${s.name}${s.description ? ` — ${s.description}` : ""}`);
+      }
+      output.push("");
+    }
+
+    return {
+      content: [{ type: "text" as const, text: output.join("\n") }],
+    };
+    } catch (error) { return formatError(error); }
+  }
+);
+
+server.registerTool(
   "get_node_css",
   {
     description: "将节点转换为 CSS 或 Tailwind 类名，支持递归生成整个组件树的样式",
