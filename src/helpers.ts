@@ -280,6 +280,39 @@ export function nodeToTailwind(node: any): string {
   return classes.join(" ");
 }
 
+export interface SearchResult {
+  id: string;
+  name: string;
+  type: string;
+  path: string;
+}
+
+export function searchNodes(
+  node: any,
+  options: { query?: string; type?: string; maxResults?: number },
+  path: string = "",
+  results: SearchResult[] = []
+): SearchResult[] {
+  if (!node || results.length >= (options.maxResults || 20)) return results;
+
+  const currentPath = path ? `${path} > ${node.name}` : (node.name || "");
+  const matchesQuery = !options.query || node.name?.toLowerCase().includes(options.query.toLowerCase());
+  const matchesType = !options.type || node.type === options.type.toUpperCase();
+
+  if (matchesQuery && matchesType && node.id) {
+    results.push({ id: node.id, name: node.name || "", type: node.type || "", path: currentPath });
+  }
+
+  if (node.children && results.length < (options.maxResults || 20)) {
+    for (const child of node.children) {
+      searchNodes(child, options, currentPath, results);
+      if (results.length >= (options.maxResults || 20)) break;
+    }
+  }
+
+  return results;
+}
+
 export function nodeToTailwindRecursive(node: any, depth: number = 0, maxDepth: number = 8): string {
   if (!node || depth > maxDepth) return "";
   if (node.visible === false) return "";

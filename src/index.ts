@@ -8,7 +8,7 @@ import { TempManager } from "./temp-manager.js";
 import { Logger } from "./logger.js";
 import { SvgExporter } from "./svg-exporter.js";
 import { simplifyNode, buildComponentMap, generateSummary, toCondensedFormat, inferSemanticRole, buildVariableMap, buildVariableMapFromNodes, toCondensedWithBudget, gradientToCSS, parseEffects, effectsToCSS, fillsToCSS, colorToString } from "./transformer.js";
-import { parseFigmaUrl, extractAllTexts, formatVariableValues, formatValue, extractDesignInfo, toCSSClass, nodeToCSS, nodeToCSSRecursive, nodeToTailwind, nodeToTailwindRecursive } from "./helpers.js";
+import { parseFigmaUrl, extractAllTexts, formatVariableValues, formatValue, extractDesignInfo, toCSSClass, nodeToCSS, nodeToCSSRecursive, nodeToTailwind, nodeToTailwindRecursive, searchNodes } from "./helpers.js";
 
 if (!process.env.FIGMA_TOKEN) {
   process.stderr.write(
@@ -267,7 +267,58 @@ server.registerTool(
   }
 );
 
-// PLACEHOLDER_INDEX_2
+server.registerTool(
+  "search_nodes",
+  {
+    description: "按名称、类型搜索文件中的节点，返回匹配节点的 ID、名称、类型和路径。适合在大文件中快速定位特定组件或元素",
+    inputSchema: {
+      fileKey: z.string().describe("Figma 文件 Key"),
+      query: z.string().optional().describe("名称模糊匹配（不区分大小写）"),
+      type: z.string().optional().describe("节点类型过滤，如 FRAME, COMPONENT, TEXT, INSTANCE, COMPONENT_SET 等"),
+      parentId: z.string().optional().describe("限定搜索范围到某个父节点下"),
+      maxResults: z.number().optional().default(20).describe("最大返回数量，默认 20"),
+    },
+  },
+  async ({ fileKey, query, type, parentId, maxResults }) => {
+    try {
+    if (!query && !type) {
+      return { content: [{ type: "text" as const, text: "请至少提供 query（名称搜索）或 type（类型过滤）参数" }] };
+    }
+
+    let rootNode: any;
+
+    if (parentId) {
+      const normalizedId = parentId.replace(/-/g, ":");
+      const data = await figma.getFileNodes(fileKey, [normalizedId]) as any;
+      if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
+      const nodeData = data.nodes[normalizedId];
+      if (!nodeData) return { content: [{ type: "text" as const, text: `父节点 ${normalizedId} 不存在` }] };
+      rootNode = nodeData.document;
+    } else {
+      const data = await figma.getFile(fileKey, {}) as any;
+      if (!data) return { content: [{ type: "text" as const, text: "获取文件失败" }] };
+      rootNode = data.document;
+    }
+
+    const results = searchNodes(rootNode, { query, type, maxResults });
+
+    if (results.length === 0) {
+      return { content: [{ type: "text" as const, text: "未找到匹配的节点" }] };
+    }
+
+    const output = results.map((r, i) =>
+      `${i + 1}. [${r.type}] ${r.name} (id: ${r.id})\n   路径: ${r.path}`
+    ).join("\n\n");
+
+    return {
+      content: [{
+        type: "text" as const,
+        text: `# 搜索结果 (共 ${results.length} 条)\n\n${output}`,
+      }],
+    };
+    } catch (error) { return formatError(error); }
+  }
+);
 
 server.registerTool(
   "get_components",
