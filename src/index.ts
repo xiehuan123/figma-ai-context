@@ -60,7 +60,67 @@ server.registerTool(
   }
 );
 
-// PLACEHOLDER_INDEX_1
+server.registerTool(
+  "get_texts",
+  {
+    description: "从 Figma 地址或文件中提取所有文字内容，支持直接传入 Figma URL",
+    inputSchema: {
+      url: z.string().optional().describe("Figma 文件/节点 URL，如 https://www.figma.com/design/xxx/yyy?node-id=1-2"),
+      fileKey: z.string().optional().describe("Figma 文件 Key（与 url 二选一）"),
+      nodeId: z.string().optional().describe("节点 ID，不传则获取整个文件的文字"),
+      depth: z.number().optional().default(20).describe("递归深度，默认 20"),
+    },
+  },
+  async ({ url, fileKey, nodeId, depth }) => {
+    let resolvedFileKey = fileKey;
+    let resolvedNodeId = nodeId;
+
+    if (url) {
+      const parsed = parseFigmaUrl(url);
+      if (!parsed) {
+        return { content: [{ type: "text" as const, text: "无法解析 Figma URL，请确认格式正确" }] };
+      }
+      resolvedFileKey = parsed.fileKey;
+      resolvedNodeId = parsed.nodeId || resolvedNodeId;
+    }
+
+    if (!resolvedFileKey) {
+      return { content: [{ type: "text" as const, text: "请提供 Figma URL 或 fileKey" }] };
+    }
+
+    let rootNode: any;
+
+    if (resolvedNodeId) {
+      const normalizedId = resolvedNodeId.replace("-", ":");
+      const data = await figma.getFileNodes(resolvedFileKey, [normalizedId]) as any;
+      if (!data) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
+      const nodeData = data.nodes[normalizedId];
+      if (!nodeData) return { content: [{ type: "text" as const, text: `节点 ${normalizedId} 不存在` }] };
+      rootNode = nodeData.document;
+    } else {
+      const data = await figma.getFile(resolvedFileKey, { depth }) as any;
+      if (!data) return { content: [{ type: "text" as const, text: "获取文件失败，请检查 token 和 file key" }] };
+      rootNode = data.document;
+    }
+
+    const texts = extractAllTexts(rootNode, depth);
+
+    if (texts.length === 0) {
+      return { content: [{ type: "text" as const, text: "未找到任何文字内容" }] };
+    }
+
+    const output = texts.map((t) =>
+      `[${t.path}] ${t.text}${t.style ? ` (${t.style})` : ""}`
+    ).join("\n");
+
+    return {
+      content: [{
+        type: "text" as const,
+        text: `# 文字内容 (共 ${texts.length} 条)\n\n${output}`,
+      }],
+    };
+  }
+);
 
 server.registerTool(
   "get_node",
@@ -449,7 +509,53 @@ server.registerTool(
   }
 );
 
-// PLACEHOLDER_INDEX_4
+function parseFigmaUrl(url: string): { fileKey: string; nodeId?: string } | null {
+  try {
+    const u = new URL(url);
+    const pathMatch = u.pathname.match(/\/(design|file|proto)\/([a-zA-Z0-9]+)/);
+    if (!pathMatch) return null;
+    const fileKey = pathMatch[2];
+    const nodeId = u.searchParams.get("node-id") || undefined;
+    return { fileKey, nodeId };
+  } catch {
+    return null;
+  }
+}
+
+interface ExtractedText {
+  path: string;
+  text: string;
+  style?: string;
+}
+
+function extractAllTexts(node: any, maxDepth: number = 20, path: string = "", depth: number = 0): ExtractedText[] {
+  if (!node || depth > maxDepth) return [];
+  if (node.visible === false) return [];
+
+  const results: ExtractedText[] = [];
+  const currentPath = path ? `${path} > ${node.name}` : node.name;
+
+  if (node.type === "TEXT" && node.characters) {
+    const style = node.style;
+    let styleStr = "";
+    if (style) {
+      const parts: string[] = [];
+      if (style.fontFamily) parts.push(style.fontFamily);
+      if (style.fontSize) parts.push(`${style.fontSize}px`);
+      if (style.fontWeight && style.fontWeight !== 400) parts.push(`w${style.fontWeight}`);
+      styleStr = parts.join(" ");
+    }
+    results.push({ path: currentPath, text: node.characters, style: styleStr || undefined });
+  }
+
+  if (node.children) {
+    for (const child of node.children) {
+      results.push(...extractAllTexts(child, maxDepth, currentPath, depth + 1));
+    }
+  }
+
+  return results;
+}
 
 function formatVariableValues(valuesByMode: Record<string, any>, modes: any[]): Record<string, any> {
   const result: Record<string, any> = {};

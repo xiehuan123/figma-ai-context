@@ -63,11 +63,12 @@ Figma → Settings → Personal Access Tokens → 创建 token
 
 从 Figma 文件 URL 中提取：`figma.com/design/这一段就是fileKey/...`
 
-## 工具列表（10 个）
+## 工具列表（11 个）
 
 | 工具 | 用途 | 关键参数 |
 |------|------|----------|
 | `get_file_structure` | 获取文件页面和顶层 frame 概览 | `fileKey` |
+| `get_texts` | 从 Figma URL 提取所有文字内容 | `url` 或 `fileKey`, `nodeId`, `depth` |
 | `get_node` | 获取节点 AI 友好数据（压缩/JSON），自动导出 SVG | `fileKey`, `nodeId`, `format`, `maxTokens` |
 | `get_components` | 获取所有组件列表 | `fileKey` |
 | `get_component_detail` | 获取组件变体属性和内部结构 | `fileKey`, `nodeId` |
@@ -105,6 +106,29 @@ Figma → Settings → Personal Access Tokens → 创建 token
 
 **手动导出：**
 使用 `export_svg` 工具可以指定任意节点 ID 进行 SVG 导出。
+
+## 文字提取
+
+`get_texts` 支持直接传入 Figma URL，提取设计稿中所有文字内容：
+
+```
+输入: https://www.figma.com/design/abc123/MyFile?node-id=1-2
+
+输出:
+# 文字内容 (共 5 条)
+
+[Page > Header > Title] Welcome to our app (Inter 24px w700)
+[Page > Header > Subtitle] Build something great (Inter 16px)
+[Page > Body > Paragraph] Lorem ipsum... (Inter 14px)
+...
+```
+
+支持的 URL 格式：
+- `https://www.figma.com/design/{fileKey}/{name}?node-id=...`
+- `https://www.figma.com/file/{fileKey}/{name}?node-id=...`
+- `https://www.figma.com/proto/{fileKey}/{name}?node-id=...`
+
+也可以直接传 `fileKey` + `nodeId` 参数。不传 `nodeId` 时获取整个文件的文字。
 
 ## 日志系统
 
