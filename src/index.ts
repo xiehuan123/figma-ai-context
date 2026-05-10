@@ -9,6 +9,7 @@ import { Logger } from "./logger.js";
 import { SvgExporter } from "./svg-exporter.js";
 import { simplifyNode, buildComponentMap, generateSummary, toCondensedFormat, inferSemanticRole, buildVariableMap, buildVariableMapFromNodes, toCondensedWithBudget, gradientToCSS, parseEffects, effectsToCSS, fillsToCSS, colorToString } from "./transformer.js";
 import { parseFigmaUrl, extractAllTexts, formatVariableValues, formatValue, extractDesignInfo, toCSSClass, nodeToCSS, nodeToCSSRecursive, nodeToTailwind, nodeToTailwindRecursive, searchNodes } from "./helpers.js";
+import { diffNodes, formatDiffOutput } from "./diff.js";
 
 if (!process.env.FIGMA_TOKEN) {
   process.stderr.write(
@@ -613,6 +614,73 @@ server.registerTool(
 );
 
 // PLACEHOLDER_INDEX_3
+
+const nodeSnapshots = new Map<string, any>();
+
+server.registerTool(
+  "diff_nodes",
+  {
+    description: "对比两个节点的差异，或对比同一节点的前后变化。支持 snapshot 模式（缓存快照后对比）和 nodes 模式（两个不同节点直接对比）",
+    inputSchema: {
+      fileKey: z.string().describe("Figma 文件 Key"),
+      nodeId: z.string().describe("要对比的节点 ID"),
+      mode: z.enum(["snapshot", "nodes"]).optional().default("nodes").describe("对比模式：snapshot（与上次快照对比）或 nodes（两节点对比，默认）"),
+      targetNodeId: z.string().optional().describe("mode=nodes 时必填，对比目标节点 ID"),
+      targetFileKey: z.string().optional().describe("跨文件对比时的目标文件 Key，默认与 fileKey 相同"),
+      depth: z.number().optional().default(3).describe("对比递归深度，默认 3"),
+    },
+  },
+  async ({ fileKey, nodeId, mode, targetNodeId, targetFileKey, depth }) => {
+    try {
+    const normalizedId = nodeId.replace(/-/g, ":");
+
+    const dataA = await figma.getFileNodes(fileKey, [normalizedId]) as any;
+    if (!dataA) return { content: [{ type: "text" as const, text: "获取节点失败" }] };
+    const nodeDataA = dataA.nodes[normalizedId];
+    if (!nodeDataA) return { content: [{ type: "text" as const, text: `节点 ${normalizedId} 不存在` }] };
+
+    const nodeA = nodeDataA.document;
+
+    if (mode === "snapshot") {
+      const snapshotKey = `${fileKey}:${normalizedId}`;
+      const previousSnapshot = nodeSnapshots.get(snapshotKey);
+      nodeSnapshots.set(snapshotKey, JSON.parse(JSON.stringify(nodeA)));
+
+      if (!previousSnapshot) {
+        return { content: [{ type: "text" as const, text: `已保存节点 "${nodeA.name}" 的快照。再次调用此工具（相同参数）即可查看变化。` }] };
+      }
+
+      const entries = diffNodes(previousSnapshot, nodeA, depth);
+      const output = formatDiffOutput(entries);
+      return {
+        content: [{ type: "text" as const, text: `# 节点变化: ${nodeA.name} (${normalizedId})\n\n${output}` }],
+      };
+    }
+
+    if (!targetNodeId) {
+      return { content: [{ type: "text" as const, text: "nodes 模式需要提供 targetNodeId 参数" }] };
+    }
+
+    const normalizedTargetId = targetNodeId.replace(/-/g, ":");
+    const targetFile = targetFileKey || fileKey;
+    const dataB = await figma.getFileNodes(targetFile, [normalizedTargetId]) as any;
+    if (!dataB) return { content: [{ type: "text" as const, text: "获取目标节点失败" }] };
+    const nodeDataB = dataB.nodes[normalizedTargetId];
+    if (!nodeDataB) return { content: [{ type: "text" as const, text: `目标节点 ${normalizedTargetId} 不存在` }] };
+
+    const nodeB = nodeDataB.document;
+    const entries = diffNodes(nodeA, nodeB, depth);
+    const output = formatDiffOutput(entries);
+
+    return {
+      content: [{
+        type: "text" as const,
+        text: `# 节点对比\n## A: ${nodeA.name} (${normalizedId})\n## B: ${nodeB.name} (${normalizedTargetId})\n\n${output}`,
+      }],
+    };
+    } catch (error) { return formatError(error); }
+  }
+);
 
 server.registerTool(
   "get_icons_index",
