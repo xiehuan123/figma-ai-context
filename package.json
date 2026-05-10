@@ -1,15 +1,18 @@
 {
   "name": "figma-ai-context",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Figma MCP Server - 将 Figma API 数据处理成 AI 友好格式",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "figma-ai-context": "./src/index.js"
+    "figma-ai-context": "./dist/index.js"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "release:patch": "npm version patch && git push origin master --tags",
     "release:minor": "npm version minor && git push origin master --tags",
     "release:major": "npm version major && git push origin master --tags"
@@ -33,5 +36,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

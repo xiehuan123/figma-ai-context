@@ -1,15 +1,13 @@
-/**
- * 日志系统 - 记录 Figma API 原始响应和优化后数据
- * 所有日志写入 .figma-temp/logs/ 目录
- */
+import { TempManager } from "./temp-manager.js";
 
 export class Logger {
-  constructor(tempManager) {
+  private tempManager: TempManager;
+
+  constructor(tempManager: TempManager) {
     this.tempManager = tempManager;
   }
 
-  /** 记录原始 Figma API 响应 */
-  logRaw(toolName, requestInfo, rawData) {
+  logRaw(toolName: string, requestInfo: unknown, rawData: unknown): string {
     const data = {
       timestamp: new Date().toISOString(),
       tool: toolName,
@@ -19,8 +17,7 @@ export class Logger {
     return this.tempManager.writeLog(toolName, "raw", data);
   }
 
-  /** 记录优化/转换后的数据 */
-  logOptimized(toolName, requestInfo, optimizedData) {
+  logOptimized(toolName: string, requestInfo: unknown, optimizedData: unknown): string {
     const data = {
       timestamp: new Date().toISOString(),
       tool: toolName,

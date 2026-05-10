@@ -7,5 +7,9 @@
 .env.*
 .mcp.json
 node_modules/
+src/
+tests/
+tsconfig.json
+vitest.config.ts
 debug-raw-vs-optimized.json
 figma-data-optimized.json

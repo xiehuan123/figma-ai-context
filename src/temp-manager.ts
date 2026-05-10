@@ -1,8 +1,3 @@
-/**
- * 临时目录管理器 - 管理 .figma-temp/ 目录的生命周期
- * 启动时清空上一次的临时数据，重新创建目录结构
- */
-
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,8 +5,30 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
+export interface IconEntry {
+  fileKey: string;
+  nodeId: string;
+  name: string;
+  svgPath: string | null;
+  source: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface IconsIndex {
+  icons: IconEntry[];
+}
+
 export class TempManager {
-  constructor(projectRoot = PROJECT_ROOT) {
+  tempDir: string;
+  logsDir: string;
+  svgDir: string;
+  rawDir: string;
+  optimizedDir: string;
+  iconsDir: string;
+  iconsIndexPath: string;
+
+  constructor(projectRoot: string = PROJECT_ROOT) {
     this.tempDir = path.join(projectRoot, ".figma-temp");
     this.logsDir = path.join(this.tempDir, "logs");
     this.svgDir = path.join(this.tempDir, "svg");
@@ -21,8 +38,7 @@ export class TempManager {
     this.iconsIndexPath = path.join(this.iconsDir, "index.json");
   }
 
-  /** 初始化：清空旧数据，创建新目录 */
-  init() {
+  init(): void {
     if (fs.existsSync(this.tempDir)) {
       fs.rmSync(this.tempDir, { recursive: true, force: true });
     }
@@ -31,43 +47,40 @@ export class TempManager {
     fs.mkdirSync(this.rawDir, { recursive: true });
     fs.mkdirSync(this.optimizedDir, { recursive: true });
     fs.mkdirSync(this.iconsDir, { recursive: true });
-    // 初始化图标索引
     fs.writeFileSync(this.iconsIndexPath, JSON.stringify({ icons: [] }, null, 2), "utf-8");
   }
 
-  getTempDir() {
+  getTempDir(): string {
     return this.tempDir;
   }
 
-  getLogsDir() {
+  getLogsDir(): string {
     return this.logsDir;
   }
 
-  getSvgDir() {
+  getSvgDir(): string {
     return this.svgDir;
   }
 
-  getRawDir() {
+  getRawDir(): string {
     return this.rawDir;
   }
 
-  getOptimizedDir() {
+  getOptimizedDir(): string {
     return this.optimizedDir;
   }
 
-  getIconsDir() {
+  getIconsDir(): string {
     return this.iconsDir;
   }
 
-  /** 写入 SVG 文件，返回完整路径 */
-  writeSvg(filename, content) {
+  writeSvg(filename: string, content: string): string {
     const filePath = path.join(this.svgDir, filename);
     fs.writeFileSync(filePath, content, "utf-8");
     return filePath;
   }
 
-  /** 写入原始 Figma API 数据 */
-  writeRaw(fileKey, nodeId, data) {
+  writeRaw(fileKey: string, nodeId: string, data: unknown): string {
     const safeNodeId = nodeId.replace(/:/g, "-");
     const filename = `${fileKey}_${safeNodeId}.json`;
     const filePath = path.join(this.rawDir, filename);
@@ -76,8 +89,7 @@ export class TempManager {
     return filePath;
   }
 
-  /** 写入优化后的数据 */
-  writeOptimized(fileKey, nodeId, data) {
+  writeOptimized(fileKey: string, nodeId: string, data: unknown): string {
     const safeNodeId = nodeId.replace(/:/g, "-");
     const filename = `${fileKey}_${safeNodeId}.json`;
     const filePath = path.join(this.optimizedDir, filename);
@@ -86,8 +98,7 @@ export class TempManager {
     return filePath;
   }
 
-  /** 添加图标到汇总索引 */
-  addIcon(entry) {
+  addIcon(entry: IconEntry): void {
     const index = this._readIconsIndex();
     const existing = index.icons.findIndex(
       (i) => i.nodeId === entry.nodeId && i.fileKey === entry.fileKey
@@ -100,8 +111,7 @@ export class TempManager {
     fs.writeFileSync(this.iconsIndexPath, JSON.stringify(index, null, 2), "utf-8");
   }
 
-  /** 批量添加图标 */
-  addIcons(entries) {
+  addIcons(entries: IconEntry[]): void {
     const index = this._readIconsIndex();
     for (const entry of entries) {
       const existing = index.icons.findIndex(
@@ -116,12 +126,11 @@ export class TempManager {
     fs.writeFileSync(this.iconsIndexPath, JSON.stringify(index, null, 2), "utf-8");
   }
 
-  /** 获取图标索引 */
-  getIconsIndex() {
+  getIconsIndex(): IconsIndex {
     return this._readIconsIndex();
   }
 
-  _readIconsIndex() {
+  private _readIconsIndex(): IconsIndex {
     try {
       const content = fs.readFileSync(this.iconsIndexPath, "utf-8");
       return JSON.parse(content);
@@ -130,8 +139,7 @@ export class TempManager {
     }
   }
 
-  /** 写入日志文件（非阻塞） */
-  writeLog(toolName, type, data) {
+  writeLog(toolName: string, type: string, data: unknown): string {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `${timestamp}_${toolName}_${type}.json`;
     const filePath = path.join(this.logsDir, filename);

@@ -2,7 +2,5 @@
 .claude/
 .figma-temp/
 node_modules/
+dist/
 *.html
-*.json
-!package.json
-!package-lock.json

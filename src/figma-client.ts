@@ -1,17 +1,30 @@
-/**
- * Figma API 客户端 - 封装所有 Figma REST API 调用
- */
+export interface FigmaRequestParams {
+  [key: string]: string | number | boolean | undefined | null;
+}
+
+type ResponseCallback = (path: string, params: FigmaRequestParams, data: unknown) => void;
+
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+}
 
 export class FigmaClient {
-  constructor(token) {
+  private token: string;
+  private baseUrl: string;
+  private cache: Map<string, CacheEntry>;
+  private cacheTTL: number;
+  onResponse: ResponseCallback | null;
+
+  constructor(token: string) {
     this.token = token;
     this.baseUrl = "https://api.figma.com/v1";
     this.cache = new Map();
-    this.cacheTTL = 60000; // 60 秒缓存
-    this.onResponse = null; // 回调钩子：(path, params, data) => void
+    this.cacheTTL = 60000;
+    this.onResponse = null;
   }
 
-  async request(path, params = {}) {
+  async request(path: string, params: FigmaRequestParams = {}): Promise<unknown> {
     const url = new URL(`${this.baseUrl}${path}`);
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
@@ -19,7 +32,6 @@ export class FigmaClient {
       }
     }
 
-    // 缓存检查
     const cacheKey = url.toString();
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
@@ -37,56 +49,46 @@ export class FigmaClient {
 
     const data = await response.json();
 
-    // 触发日志回调
     if (this.onResponse) {
       this.onResponse(path, params, data);
     }
 
-    // 写入缓存
     this.cache.set(cacheKey, { data, timestamp: Date.now() });
 
     return data;
   }
 
-  /** 获取文件基本信息 */
-  async getFile(fileKey, { depth } = {}) {
+  async getFile(fileKey: string, { depth }: { depth?: number } = {}): Promise<unknown> {
     return this.request(`/files/${fileKey}`, { depth });
   }
 
-  /** 获取指定节点（支持 plugin_data 获取 boundVariables） */
-  async getFileNodes(fileKey, nodeIds) {
+  async getFileNodes(fileKey: string, nodeIds: string[]): Promise<unknown> {
     const ids = nodeIds.join(",");
     return this.request(`/files/${fileKey}/nodes`, { ids });
   }
 
-  /** 获取文件组件列表 */
-  async getFileComponents(fileKey) {
+  async getFileComponents(fileKey: string): Promise<unknown> {
     return this.request(`/files/${fileKey}/components`);
   }
 
-  /** 获取文件样式列表 */
-  async getFileStyles(fileKey) {
+  async getFileStyles(fileKey: string): Promise<unknown> {
     return this.request(`/files/${fileKey}/styles`);
   }
 
-  /** 获取 Variables 定义 */
-  async getVariables(fileKey) {
+  async getVariables(fileKey: string): Promise<unknown> {
     return this.request(`/files/${fileKey}/variables/local`);
   }
 
-  /** 获取已发布的 Variables（跨文件引用） */
-  async getPublishedVariables(fileKey) {
+  async getPublishedVariables(fileKey: string): Promise<unknown> {
     return this.request(`/files/${fileKey}/variables/published`);
   }
 
-  /** 获取图片导出 URL */
-  async getImages(fileKey, nodeIds, format = "png", scale = 2) {
+  async getImages(fileKey: string, nodeIds: string[], format: string = "png", scale: number = 2): Promise<unknown> {
     const ids = nodeIds.join(",");
     return this.request(`/images/${fileKey}`, { ids, format, scale });
   }
 
-  /** 获取组件集详情（包含变体信息） */
-  async getComponentSet(fileKey, nodeId) {
+  async getComponentSet(fileKey: string, nodeId: string): Promise<unknown> {
     return this.request(`/files/${fileKey}/nodes`, { ids: nodeId });
   }
 }
