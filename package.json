@@ -1,6 +1,6 @@
 {
   "name": "figma-ai-context",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "Figma MCP Server - 将 Figma API 数据处理成 AI 友好格式",
   "type": "module",
   "main": "dist/index.js",

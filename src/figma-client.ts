@@ -153,9 +153,13 @@ export class FigmaClient {
     return this.request(`/files/${fileKey}`, { depth });
   }
 
-  async getFileNodes(fileKey: string, nodeIds: string[]): Promise<unknown> {
+  async getFileNodes(fileKey: string, nodeIds: string[], version?: string): Promise<unknown> {
     const ids = nodeIds.join(",");
-    return this.request(`/files/${fileKey}/nodes`, { ids });
+    return this.request(`/files/${fileKey}/nodes`, { ids, version });
+  }
+
+  async getFileVersions(fileKey: string): Promise<unknown> {
+    return this.request(`/files/${fileKey}/versions`);
   }
 
   async getFileComponents(fileKey: string): Promise<unknown> {
