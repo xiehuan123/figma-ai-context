@@ -1,26 +1,26 @@
 # Figma AI Context
 
-将 Figma API 数据转换为 AI 友好格式的 MCP 服务器，专为 LLM 代码生成场景优化。
+An MCP server that transforms Figma API data into AI-friendly formats, optimized for LLM code generation workflows.
 
-## 特性
+## Features
 
-- **压缩文本格式** — 比 JSON 节省 60%+ token，适合 LLM 上下文
-- **一站式代码生成** — 结构 + design tokens + 组件定义 + 颜色/字体规范一次获取
-- **CSS / Tailwind 输出** — 直接生成样式代码，支持递归组件树
-- **SVG 导出** — 检测图标/矢量图形，导出为 SVG 并保存
-- **节点搜索** — 按名称/类型快速定位节点，大文件不再迷路
-- **节点对比** — 对比两个节点差异或同一节点的前后变化
-- **组件 Variants** — 提取组件集的所有属性组合，直接生成 Props 接口
-- **样式系统** — 获取文件的颜色/文字/效果样式定义
-- **语义角色推断** — 自动识别 28 种 UI 语义角色（BUTTON, CARD, ICON 等）
-- **智能预算控制** — token 预算自动控制输出大小，超预算时智能降低深度
-- **请求容错** — 自动重试、并发控制、LRU 缓存，稳定不崩溃
+- **Condensed Text Format** — 60%+ token savings over JSON, ideal for LLM context windows
+- **One-shot Codegen** — Structure + design tokens + component definitions + color/font specs in a single call
+- **CSS / Tailwind Output** — Generate style code directly, with recursive component tree support
+- **SVG Export** — Detect icons/vectors and export as SVG files
+- **Node Search** — Find nodes by name/type quickly, even in large files
+- **Node Diff** — Compare two nodes or track changes to the same node over time via version history
+- **Component Variants** — Extract all property combinations from component sets for Props interfaces
+- **Style System** — Retrieve color/text/effect style definitions from files
+- **Semantic Role Inference** — Auto-detect 28 UI semantic roles (BUTTON, CARD, ICON, etc.)
+- **Smart Token Budget** — Auto-control output size; gracefully reduce depth when over budget
+- **Resilient Requests** — Auto-retry, concurrency control, LRU cache for stability
 
-## 安装使用
+## Installation
 
-### 方式一：npx 直接使用（推荐）
+### Option 1: npx (Recommended)
 
-无需安装，在 MCP 客户端配置中直接使用：
+No installation needed — use directly in your MCP client config:
 
 ```json
 {
@@ -29,14 +29,14 @@
       "command": "npx",
       "args": ["-y", "figma-ai-context"],
       "env": {
-        "FIGMA_TOKEN": "figd_你的token"
+        "FIGMA_TOKEN": "figd_your_token"
       }
     }
   }
 }
 ```
 
-### 方式二：全局安装
+### Option 2: Global Install
 
 ```bash
 npm install -g figma-ai-context
@@ -48,14 +48,14 @@ npm install -g figma-ai-context
     "figma": {
       "command": "figma-ai-context",
       "env": {
-        "FIGMA_TOKEN": "figd_你的token"
+        "FIGMA_TOKEN": "figd_your_token"
       }
     }
   }
 }
 ```
 
-### 方式三：本地源码运行
+### Option 3: From Source
 
 ```bash
 git clone https://github.com/xiehuan123/figma-ai-context.git
@@ -71,6 +71,134 @@ npm run build
       "command": "node",
       "args": ["/path/to/figma-ai-context/dist/index.js"],
       "env": {
+        "FIGMA_TOKEN": "figd_your_token"
+      }
+    }
+  }
+}
+```
+
+### Client Config Locations
+
+| Client | Config Path |
+|--------|-------------|
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
+| Claude Code | `mcpServers` field in `.claude/settings.json` |
+| Cursor | Settings → MCP → Add Server |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| VS Code (Copilot) | `.vscode/mcp.json` |
+
+### Getting a Figma Token
+
+1. Log in to [Figma](https://www.figma.com)
+2. Go to Settings → Personal Access Tokens
+3. Create a new token and copy the string starting with `figd_`
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_file_structure` | Get page and top-level frame structure overview |
+| `get_node` | Get AI-friendly node data (JSON / condensed text) |
+| `get_page_for_codegen` | One-shot fetch of full codegen context |
+| `get_node_css` | Convert node to CSS or Tailwind classes |
+| `get_texts` | Extract all text content, supports Figma URL input |
+| `search_nodes` | Search nodes by name/type for quick location |
+| `get_styles` | Get color/text/effect/grid style definitions |
+| `get_components` | List all components in a file |
+| `get_component_variants` | Get all variant property combinations |
+| `get_variables` | Get Design Variables / Tokens |
+| `get_images` | Get image export URLs (PNG/SVG/PDF) |
+| `export_svg` | Export nodes as SVG and save to temp directory |
+| `get_icons_index` | Get summary index of exported SVGs in session |
+| `diff_nodes` | Compare two nodes or track node changes over time |
+| `get_versions` | List file version history for diff operations |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `FIGMA_TOKEN` | Yes | Figma Personal Access Token |
+| `FIGMA_CACHE_TTL` | No | Cache TTL in milliseconds (default: 60000) |
+
+## Data Processing
+
+| Processing | Description |
+|------------|-------------|
+| Noise removal | Strip pluginData, exportSettings, invisible nodes |
+| Color flattening | RGBA objects → `#hex` or `rgba()` |
+| Layout semantics | Auto Layout → `flex-row/flex-col`, `start/center/end` |
+| Padding compression | Collapse identical sides to single value |
+| Depth control | Configurable recursion depth + token budget auto-truncation |
+| Caching | LRU cache (max 50 entries), configurable TTL |
+| Resilience | Auto-retry 429/5xx (exponential backoff), concurrency limit (max 5) |
+
+## Project Structure
+
+```
+src/
+  index.ts          # MCP Server entry, tool registration
+  figma-client.ts   # Figma REST API client (retry + cache + concurrency)
+  transformer.ts    # Data transform (simplify, compress, semantic inference)
+  helpers.ts        # URL parsing, text extraction, CSS/Tailwind gen, node search
+  diff.ts           # Node diff logic
+  svg-exporter.ts   # SVG detection and export
+  temp-manager.ts   # Temp directory lifecycle management
+  logger.ts         # Logging system
+```
+
+## Development
+
+```bash
+npm run build      # Compile
+npm run dev        # Watch mode
+npm test           # Run tests
+npm run test:watch # Watch mode tests
+```
+
+## Publishing
+
+Automated via GitHub Actions. Triggered on Release creation:
+
+1. Bump version: `npm version patch` (or `minor` / `major`)
+2. Push tag: `git push origin master --tags`
+3. Create a Release on GitHub targeting the tag
+4. CI builds and publishes to npm and GitHub Packages
+
+## Requirements
+
+- Node.js 18+ (native fetch required)
+- Figma Personal Access Token
+
+---
+
+## 中文说明
+
+将 Figma API 数据转换为 AI 友好格式的 MCP 服务器，专为 LLM 代码生成场景优化。
+
+### 主要特性
+
+- **压缩文本格式** — 比 JSON 节省 60%+ token，适合 LLM 上下文
+- **一站式代码生成** — 结构 + design tokens + 组件定义 + 颜色/字体规范一次获取
+- **CSS / Tailwind 输出** — 直接生成样式代码，支持递归组件树
+- **SVG 导出** — 检测图标/矢量图形，导出为 SVG 并保存
+- **节点搜索** — 按名称/类型快速定位节点
+- **节点对比** — 对比两个节点差异或通过版本历史追踪同一节点的变化
+- **组件 Variants** — 提取组件集的所有属性组合，直接生成 Props 接口
+- **样式系统** — 获取文件的颜色/文字/效果样式定义
+- **语义角色推断** — 自动识别 28 种 UI 语义角色（BUTTON, CARD, ICON 等）
+- **智能预算控制** — token 预算自动控制输出大小，超预算时智能降低深度
+- **请求容错** — 自动重试、并发控制、LRU 缓存，稳定不崩溃
+
+### 快速开始
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "figma-ai-context"],
+      "env": {
         "FIGMA_TOKEN": "figd_你的token"
       }
     }
@@ -78,96 +206,7 @@ npm run build
 }
 ```
 
-### 各客户端配置位置
-
-| 客户端 | 配置文件路径 |
-|--------|-------------|
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
-| Claude Code | `.claude/settings.json` 中的 `mcpServers` 字段 |
-| Cursor | Settings → MCP → Add Server |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
-| VS Code (Copilot) | `.vscode/mcp.json` |
-
-### 获取 Figma Token
-
-1. 登录 [Figma](https://www.figma.com)
-2. 进入 Settings → Personal Access Tokens
-3. 创建新 token，复制以 `figd_` 开头的字符串
-
-## 可用工具
-
-| 工具 | 说明 |
-|------|------|
-| `get_file_structure` | 获取文件的页面和顶层 frame 结构概览 |
-| `get_node` | 获取节点的 AI 友好数据（JSON / 压缩文本格式） |
-| `get_page_for_codegen` | 一站式获取代码生成所需的完整上下文 |
-| `get_node_css` | 将节点转换为 CSS 或 Tailwind 类名 |
-| `get_texts` | 提取所有文字内容，支持直接传入 Figma URL |
-| `search_nodes` | 按名称/类型搜索节点，快速定位组件 |
-| `get_styles` | 获取文件的颜色/文字/效果/网格样式定义 |
-| `get_components` | 获取文件中所有组件列表 |
-| `get_component_variants` | 获取组件集的所有 variant 属性组合 |
-| `get_variables` | 获取 Design Variables / Tokens |
-| `get_images` | 获取节点的图片导出 URL（PNG/SVG/PDF） |
-| `export_svg` | 导出节点为 SVG 并保存到临时目录 |
-| `get_icons_index` | 获取当前会话已导出的 SVG 汇总索引 |
-| `diff_nodes` | 对比两个节点差异或同一节点的前后变化 |
-
-## 环境变量
-
-| 变量 | 必填 | 说明 |
-|------|------|------|
-| `FIGMA_TOKEN` | 是 | Figma Personal Access Token |
-| `FIGMA_CACHE_TTL` | 否 | 缓存过期时间（毫秒），默认 60000 |
-
-## 数据处理策略
-
-| 处理 | 说明 |
-|------|------|
-| 去噪 | 移除 pluginData、exportSettings、不可见节点 |
-| 颜色扁平化 | RGBA 对象 → `#hex` 或 `rgba()` |
-| 布局语义化 | Auto Layout → `flex-row/flex-col`、`start/center/end` |
-| Padding 压缩 | 四边相同压缩为单值 |
-| 深度控制 | 可配置递归深度 + token 预算自动截断 |
-| 缓存 | LRU 缓存（最大 50 条），可配置 TTL |
-| 容错 | 自动重试 429/5xx（指数退避），并发控制（最大 5 请求） |
-
-## 项目结构
-
-```
-src/
-  index.ts          # MCP Server 入口，工具注册
-  figma-client.ts   # Figma REST API 客户端（重试 + 缓存 + 并发控制）
-  transformer.ts    # 数据转换（简化、压缩、语义推断）
-  helpers.ts        # URL 解析、文字提取、CSS/Tailwind 生成、节点搜索
-  diff.ts           # 节点对比逻辑
-  svg-exporter.ts   # SVG 检测与导出
-  temp-manager.ts   # 临时目录生命周期管理
-  logger.ts         # 日志系统
-```
-
-## 开发
-
-```bash
-npm run build      # 编译
-npm run dev        # watch 模式
-npm test           # 运行测试
-npm run test:watch # watch 模式测试
-```
-
-## 发布
-
-项目通过 GitHub Actions 自动发布。创建 Release 时自动触发：
-
-1. 更新版本号：`npm version patch`（或 `minor` / `major`）
-2. 推送 tag：`git push origin master --tags`
-3. 在 GitHub 上创建 Release，选择对应 tag
-4. CI 自动构建并发布到 npm 和 GitHub Packages
-
-## 环境要求
-
-- Node.js 18+（需要原生 fetch）
-- Figma Personal Access Token
+详细安装方式和工具列表请参考上方英文文档。
 
 ## License
 
