@@ -1,6 +1,6 @@
 {
   "name": "figma-ai-context",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "MCP server that transforms Figma API data into AI-friendly formats for LLM code generation",
   "type": "module",
   "main": "dist/index.js",
