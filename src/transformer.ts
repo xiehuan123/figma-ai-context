@@ -471,7 +471,6 @@ export function gradientToCSS(fill: FigmaFill): string | null {
   return null;
 }
 
-// PLACEHOLDER_PART2
 
 function calcRadialGradientParams(positions: FigmaPosition[] | undefined): { rx: number; ry: number; cx: number; cy: number } {
   if (!positions || positions.length < 3) {
@@ -558,7 +557,6 @@ export function effectsToCSS(effects: FigmaEffect[] | undefined): Record<string,
   return css;
 }
 
-// PLACEHOLDER_PART3
 
 export function fillsToCSS(fills: FigmaFill[] | undefined): Record<string, string> {
   const css: Record<string, string> = {};
@@ -624,73 +622,43 @@ export function buildVariableMap(variablesData: any): Record<string, string> {
   return map;
 }
 
-// PLACEHOLDER_PART4
 
 export function buildVariableMapFromNodes(node: FigmaNode): Record<string, { color: string; cssVar: string }> {
   const varEntries: Record<string, { color: string; contexts: any[] }> = {};
 
+  function addEntry(id: string, color: FigmaColor | undefined, context: { node: string; type: string; usage: string }): void {
+    const hex = colorToHex(color);
+    if (!varEntries[id]) {
+      varEntries[id] = { color: hex, contexts: [] };
+    }
+    varEntries[id].contexts.push(context);
+  }
+
+  function collectFills(fills: FigmaFill[], nodeName: string, nodeType: string, usage: string): void {
+    for (const fill of fills) {
+      if (fill.type === "SOLID" && fill.boundVariables?.color?.id) {
+        addEntry(fill.boundVariables.color.id, fill.color, { node: nodeName, type: nodeType, usage });
+      }
+      if (fill.gradientStops) {
+        for (const stop of fill.gradientStops) {
+          if (stop.boundVariables?.color?.id) {
+            addEntry(stop.boundVariables.color.id, stop.color, { node: nodeName, type: nodeType, usage: "gradient-stop" });
+          }
+        }
+      }
+    }
+  }
+
   function collect(n: FigmaNode): void {
     if (!n) return;
 
-    if (n.fills) {
-      for (const fill of n.fills) {
-        if (fill.type === "SOLID" && fill.boundVariables?.color?.id) {
-          const id = fill.boundVariables.color.id;
-          const hex = colorToHex(fill.color);
-          if (!varEntries[id]) {
-            varEntries[id] = { color: hex, contexts: [] };
-          }
-          varEntries[id].contexts.push({ node: n.name, type: n.type, usage: "fill" });
-        }
-        if (fill.gradientStops) {
-          for (const stop of fill.gradientStops) {
-            if (stop.boundVariables?.color?.id) {
-              const id = stop.boundVariables.color.id;
-              const hex = colorToHex(stop.color);
-              if (!varEntries[id]) {
-                varEntries[id] = { color: hex, contexts: [] };
-              }
-              varEntries[id].contexts.push({ node: n.name, type: n.type, usage: "gradient-stop" });
-            }
-          }
-        }
-      }
-    }
-
-    if (n.strokes) {
-      for (const stroke of n.strokes) {
-        if (stroke.type === "SOLID" && stroke.boundVariables?.color?.id) {
-          const id = stroke.boundVariables.color.id;
-          const hex = colorToHex(stroke.color);
-          if (!varEntries[id]) {
-            varEntries[id] = { color: hex, contexts: [] };
-          }
-          varEntries[id].contexts.push({ node: n.name, type: n.type, usage: "stroke" });
-        }
-        if (stroke.gradientStops) {
-          for (const stop of stroke.gradientStops) {
-            if (stop.boundVariables?.color?.id) {
-              const id = stop.boundVariables.color.id;
-              const hex = colorToHex(stop.color);
-              if (!varEntries[id]) {
-                varEntries[id] = { color: hex, contexts: [] };
-              }
-              varEntries[id].contexts.push({ node: n.name, type: n.type, usage: "gradient-stop" });
-            }
-          }
-        }
-      }
-    }
+    if (n.fills) collectFills(n.fills, n.name, n.type, "fill");
+    if (n.strokes) collectFills(n.strokes, n.name, n.type, "stroke");
 
     if (n.effects) {
       for (const effect of n.effects) {
         if (effect.boundVariables?.color?.id) {
-          const id = effect.boundVariables.color.id;
-          const hex = colorToHex(effect.color);
-          if (!varEntries[id]) {
-            varEntries[id] = { color: hex, contexts: [] };
-          }
-          varEntries[id].contexts.push({ node: n.name, type: n.type, usage: "effect" });
+          addEntry(effect.boundVariables.color.id, effect.color, { node: n.name, type: n.type, usage: "effect" });
         }
       }
     }
@@ -707,15 +675,11 @@ export function buildVariableMapFromNodes(node: FigmaNode): Record<string, { col
   const result: Record<string, { color: string; cssVar: string }> = {};
   for (const [id, entry] of Object.entries(varEntries)) {
     const cssVar = inferVarName(id, entry.color, entry.contexts[0]);
-    result[id] = {
-      color: entry.color,
-      cssVar,
-    };
+    result[id] = { color: entry.color, cssVar };
   }
   return result;
 }
 
-// PLACEHOLDER_PART5
 
 function inferVarName(id: string, color: string, context: any): string {
   const idNum = id.replace("VariableID:", "").replace(/:/g, "-");
@@ -790,7 +754,6 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-// PLACEHOLDER_PART6
 
 function toCondensedLine(node: FigmaNode, depth: number, variableMap: Record<string, string> | null): string {
   const indent = "  ".repeat(depth);

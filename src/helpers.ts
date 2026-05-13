@@ -6,6 +6,10 @@ export interface ExtractedText {
   style?: string;
 }
 
+function rgbToHex(c: { r: number; g: number; b: number }): string {
+  return `${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`;
+}
+
 export function parseFigmaUrl(url: string): { fileKey: string; nodeId?: string } | null {
   try {
     const u = new URL(url);
@@ -130,9 +134,7 @@ export function nodeToCSS(node: any): string {
     const gradientStrokes = strokes.filter((s: any) => s.type?.startsWith("GRADIENT_"));
 
     if (solidStrokes.length > 0 && solidStrokes[0].color) {
-      const c = solidStrokes[0].color;
-      const hex = `#${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`;
-      lines.push(`border: ${node.strokeWeight || 1}px solid ${hex};`);
+      lines.push(`border: ${node.strokeWeight || 1}px solid #${rgbToHex(solidStrokes[0].color)};`);
     } else if (gradientStrokes.length > 0) {
       const gradCSS = gradientToCSS(gradientStrokes[0]);
       if (gradCSS) {
@@ -209,17 +211,13 @@ export function nodeToTailwind(node: any): string {
     const g = gradientToCSS(gradientFills[0]);
     if (g) classes.push(`bg-[${g.replace(/\s+/g, "_")}]`);
   } else if (solidFills.length > 0 && solidFills[0].color) {
-    const c = solidFills[0].color;
-    const hex = `${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`;
-    classes.push(`bg-[#${hex}]`);
+    classes.push(`bg-[#${rgbToHex(solidFills[0].color)}]`);
   }
 
   const strokes = (node.strokes || []).filter((s: any) => s.visible !== false && s.type === "SOLID");
   if (strokes.length > 0 && strokes[0].color) {
-    const c = strokes[0].color;
-    const hex = `${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`;
     classes.push(`border-[${node.strokeWeight || 1}px]`);
-    classes.push(`border-[#${hex}]`);
+    classes.push(`border-[#${rgbToHex(strokes[0].color)}]`);
   }
 
   if (node.layoutMode === "HORIZONTAL") {
@@ -267,9 +265,7 @@ export function nodeToTailwind(node: any): string {
     if (s.fontWeight && s.fontWeight !== 400) classes.push(`font-[${s.fontWeight}]`);
     const textFills = (node.fills || []).filter((f: any) => f.visible !== false && f.type === "SOLID");
     if (textFills.length > 0 && textFills[0].color) {
-      const c = textFills[0].color;
-      const hex = `${Math.round(c.r * 255).toString(16).padStart(2, "0")}${Math.round(c.g * 255).toString(16).padStart(2, "0")}${Math.round(c.b * 255).toString(16).padStart(2, "0")}`;
-      classes.push(`text-[#${hex}]`);
+      classes.push(`text-[#${rgbToHex(textFills[0].color)}]`);
     }
   }
 
@@ -293,7 +289,8 @@ export function searchNodes(
   path: string = "",
   results: SearchResult[] = []
 ): SearchResult[] {
-  if (!node || results.length >= (options.maxResults || 20)) return results;
+  const max = options.maxResults || 20;
+  if (!node || results.length >= max) return results;
 
   const currentPath = path ? `${path} > ${node.name}` : (node.name || "");
   const matchesQuery = !options.query || node.name?.toLowerCase().includes(options.query.toLowerCase());
@@ -303,10 +300,10 @@ export function searchNodes(
     results.push({ id: node.id, name: node.name || "", type: node.type || "", path: currentPath });
   }
 
-  if (node.children && results.length < (options.maxResults || 20)) {
+  if (node.children && results.length < max) {
     for (const child of node.children) {
       searchNodes(child, options, currentPath, results);
-      if (results.length >= (options.maxResults || 20)) break;
+      if (results.length >= max) break;
     }
   }
 

@@ -100,11 +100,11 @@ describe("TempManager", () => {
   });
 
   it("should return correct directory paths", () => {
-    expect(tempManager.getTempDir()).toContain(".figma-temp");
-    expect(tempManager.getLogsDir()).toContain("logs");
-    expect(tempManager.getSvgDir()).toContain("svg");
-    expect(tempManager.getRawDir()).toContain("raw");
-    expect(tempManager.getOptimizedDir()).toContain("optimized");
-    expect(tempManager.getIconsDir()).toContain("icons");
+    expect(tempManager.tempDir).toContain(".figma-temp");
+    expect(tempManager.logsDir).toContain("logs");
+    expect(tempManager.svgDir).toContain("svg");
+    expect(tempManager.rawDir).toContain("raw");
+    expect(tempManager.optimizedDir).toContain("optimized");
+    expect(tempManager.iconsDir).toContain("icons");
   });
 });

@@ -50,30 +50,6 @@ export class TempManager {
     fs.writeFileSync(this.iconsIndexPath, JSON.stringify({ icons: [] }, null, 2), "utf-8");
   }
 
-  getTempDir(): string {
-    return this.tempDir;
-  }
-
-  getLogsDir(): string {
-    return this.logsDir;
-  }
-
-  getSvgDir(): string {
-    return this.svgDir;
-  }
-
-  getRawDir(): string {
-    return this.rawDir;
-  }
-
-  getOptimizedDir(): string {
-    return this.optimizedDir;
-  }
-
-  getIconsDir(): string {
-    return this.iconsDir;
-  }
-
   writeSvg(filename: string, content: string): string {
     const filePath = path.join(this.svgDir, filename);
     fs.writeFileSync(filePath, content, "utf-8");
@@ -81,34 +57,22 @@ export class TempManager {
   }
 
   writeRaw(fileKey: string, nodeId: string, data: unknown): string {
-    const safeNodeId = nodeId.replace(/:/g, "-");
-    const filename = `${fileKey}_${safeNodeId}.json`;
-    const filePath = path.join(this.rawDir, filename);
-    const content = JSON.stringify(data, null, 2);
-    fs.writeFileSync(filePath, content, "utf-8");
-    return filePath;
+    return this._writeJson(this.rawDir, fileKey, nodeId, data);
   }
 
   writeOptimized(fileKey: string, nodeId: string, data: unknown): string {
+    return this._writeJson(this.optimizedDir, fileKey, nodeId, data);
+  }
+
+  private _writeJson(dir: string, fileKey: string, nodeId: string, data: unknown): string {
     const safeNodeId = nodeId.replace(/:/g, "-");
-    const filename = `${fileKey}_${safeNodeId}.json`;
-    const filePath = path.join(this.optimizedDir, filename);
-    const content = JSON.stringify(data, null, 2);
-    fs.writeFileSync(filePath, content, "utf-8");
+    const filePath = path.join(dir, `${fileKey}_${safeNodeId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     return filePath;
   }
 
   addIcon(entry: IconEntry): void {
-    const index = this._readIconsIndex();
-    const existing = index.icons.findIndex(
-      (i) => i.nodeId === entry.nodeId && i.fileKey === entry.fileKey
-    );
-    if (existing >= 0) {
-      index.icons[existing] = { ...index.icons[existing], ...entry, updatedAt: new Date().toISOString() };
-    } else {
-      index.icons.push({ ...entry, createdAt: new Date().toISOString() });
-    }
-    fs.writeFileSync(this.iconsIndexPath, JSON.stringify(index, null, 2), "utf-8");
+    this.addIcons([entry]);
   }
 
   addIcons(entries: IconEntry[]): void {

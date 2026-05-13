@@ -23,7 +23,6 @@ export class FigmaClient {
   private token: string;
   private baseUrl: string;
   private cache: Map<string, CacheEntry>;
-  private cacheOrder: string[];
   private cacheTTL: number;
   private cacheMaxSize: number;
   private maxRetries: number;
@@ -36,7 +35,6 @@ export class FigmaClient {
     this.token = token;
     this.baseUrl = "https://api.figma.com/v1";
     this.cache = new Map();
-    this.cacheOrder = [];
     this.cacheTTL = parseInt(process.env.FIGMA_CACHE_TTL || "60000", 10);
     this.cacheMaxSize = 50;
     this.maxRetries = 3;
@@ -64,14 +62,12 @@ export class FigmaClient {
   }
 
   private cacheSet(key: string, data: unknown): void {
-    if (this.cache.has(key)) {
-      this.cacheOrder = this.cacheOrder.filter((k) => k !== key);
-    } else if (this.cache.size >= this.cacheMaxSize) {
-      const evictKey = this.cacheOrder.shift();
-      if (evictKey) this.cache.delete(evictKey);
+    this.cache.delete(key);
+    if (this.cache.size >= this.cacheMaxSize) {
+      const firstKey = this.cache.keys().next().value!;
+      this.cache.delete(firstKey);
     }
     this.cache.set(key, { data, timestamp: Date.now(), key });
-    this.cacheOrder.push(key);
   }
 
   private cacheGet(key: string): unknown | null {
@@ -79,11 +75,10 @@ export class FigmaClient {
     if (!entry) return null;
     if (this.cacheTTL <= 0 || Date.now() - entry.timestamp > this.cacheTTL) {
       this.cache.delete(key);
-      this.cacheOrder = this.cacheOrder.filter((k) => k !== key);
       return null;
     }
-    this.cacheOrder = this.cacheOrder.filter((k) => k !== key);
-    this.cacheOrder.push(key);
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     return entry.data;
   }
 
